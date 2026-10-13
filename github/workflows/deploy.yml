@@ -1,0 +1,45 @@
+name: CI/CD Production Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          cd app
+          pip install -r requirements.txt
+
+      - name: Check App Syntax
+        run: |
+          python -m py_compile app/app.py
+
+  build-and-push:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Build Docker Image
+        run: |
+          docker build -t devops-app:latest .
+
+      - name: Test Docker Container Run
+        run: |
+          docker run -d -p 5000:5000 --name test-container devops-app:latest
+          sleep 3
+          curl --fail http://localhost:5000/health || exit 1
